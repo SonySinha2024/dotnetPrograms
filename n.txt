@@ -1,0 +1,495 @@
+dotnet new sln
+dotnet new mvc -o EndModuleWebApp2
+dotnet sln add ./EndModuleWebApp2/EndModuleWebApp2.csproj
+cd EndModuleWebApp2
+dotnet add package MySql.data
+
+//bin
+//Controllers
+
+   //EmployeeController
+   
+using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using EndModuleWebApp.Models;
+using EMS.Services;
+using EMS.Entities;
+using EMS.Repositories;
+using EndModuleWebApp.Controllers;
+
+public class EmployeesController : Controller{
+private readonly IEmployeeService _scv;
+public EmployeesController(IEmployeeService svc){
+        Console.WriteLine("Employee Controller Constructor is being Invoked.....");
+        this._scv=svc;}
+
+    [HttpGet]
+    public IActionResult Index(){
+        Console.WriteLine("Employee Index Action Method is called...");
+        List<Employee> employees = _scv.GetAll();
+        TempData["allEmployees"] = employees;
+        return View();}
+
+    public IActionResult List(){
+        Console.WriteLine("Employee List Action Method is called...");
+        List<Employee> employees= _scv.GetAll();
+        return View(employees);}
+
+    [HttpGet]
+    public IActionResult Details(int id){
+        Console.WriteLine("Employee Details Action Method is called...");
+        Employee emp = _scv.GetById(id);
+        return View(emp);}
+
+    [HttpGet]
+    public IActionResult Delete(int id){
+        Console.WriteLine("Employee Delete Action Method is called...");
+        _scv.Delete(id);
+        return View();}
+
+    [HttpGet]
+    public IActionResult Edit(int id){
+        Console.WriteLine("Employee Edit Get Action Method is called...");
+        List<Employee> employees= _scv.GetAll();
+        var e= employees.Find((emp)=>emp.Id==id);  
+        return View(e);}
+
+    [HttpPost]
+    public IActionResult Edit(IFormCollection form){
+        Console.WriteLine("Employee Edit Post Action Method is called...");
+        int id = int.Parse(form["Id"]);
+        string fName = form["FirstName"];
+        string lName = form["LastName"];
+        string address = form["Address"];
+        string email = form["Email"];
+        Employee emp = new Employee(id,fName,lName,address,email);
+        _scv.Update(emp);
+        Console.WriteLine(emp.Id+ " " + emp.LastName);
+        return RedirectToAction("Index","Employees",null);}
+
+    [HttpGet]
+    public IActionResult Insert(){
+        return View();}
+
+    public IActionResult Insert(IFormCollection form){
+        Employee emp = new Employee{Id=int.Parse(form["Id"]),FirstName=form["FirstName"],LastName=form["LastName"],Address=form["Address"],Email=form["Email"]};
+        Console.WriteLine(emp.FirstName);
+        _scv.Insert(emp);
+        return View();}
+}
+
+//homecontroller
+
+//Entities
+Department.cs
+namespace EMS.Entities;
+using EMS.Entities;
+
+public class Department{
+    public int Id{set; get;}
+    public string Name{set; get;}
+    public string Location{set; get;}
+
+    public Department(){
+        Console.WriteLine("Department const invoked.....");}}
+
+//Employee.cs
+namespace EMS.Entities;
+using EMS.Entities;
+public class Employee{
+    public Employee(){
+        Console.WriteLine("Employee const invoked......");}
+    public int Id{set; get;}
+    public string FirstName{set; get;}
+    public string LastName{set; get;}
+    public string Address{set; get;}
+    public string Email{set; get;}
+
+    public Employee(string FirstName,string LastName,string Address, string Email){
+        this.FirstName=FirstName;
+        this.LastName=LastName;
+        this.Email=Email;
+        this.Address=Address;}
+
+    public Employee(int Id,string FirstName,string LastName,string Address, string Email){
+        this.Id=Id;
+        this.FirstName=FirstName;
+        this.LastName=LastName;
+        this.Email=Email;
+        this.Address=Address;}}
+
+//Models
+//obj
+//Properties
+//Repository
+   // MySqlRepository.cs
+     using EMS.Entities;
+using MySql.Data.MySqlClient;
+
+namespace EMS.Repositories;
+
+public class MySqlDBManager{
+    public MySqlDBManager(){}
+
+    public List<Employee> GetAll(){
+        List<Employee> employees = new List<Employee>();
+        MySqlConnection con = new MySqlConnection();
+        con.ConnectionString=@"server=localhost; port=3306; user=root; password=root123; database=dotnet";
+        MySqlCommand cmd =  new MySqlCommand();
+        cmd.Connection = con;
+        cmd.CommandText = "Select * from employees";
+        try{
+            con.Open();
+            MySqlDataReader reader = cmd.ExecuteReader();
+            while(reader.Read()){
+                int id = int.Parse(reader["id"].ToString());
+                string? firstName = reader["firstName"].ToString();
+                string? lastName = reader["lastName"].ToString();
+                string? address = reader["address"].ToString();
+                string? email = reader["email"].ToString();
+                Employee emp = new Employee();
+                emp.Id = id;
+                emp.FirstName = firstName;
+                emp.LastName = lastName;
+                emp.Email = email;
+                emp.Address = address;
+                employees.Add(emp);
+            }
+
+        }catch(Exception e){
+            Console.WriteLine(e.Message);
+        }finally{
+            con.Close();
+        }
+        return employees;
+    }
+
+    public Employee GetById(int id){
+        Employee emp = new Employee();
+        MySqlConnection con = new MySqlConnection();
+        con.ConnectionString=@"server=localhost; port=3306; user=root; password=root123; database=dotnet";
+        MySqlCommand cmd =  new MySqlCommand();
+        cmd.Connection = con;
+        cmd.CommandText = "Select * from employees where id="+id;
+        try{
+            con.Open();
+            MySqlDataReader reader = cmd.ExecuteReader();
+            if(reader.Read()){
+                int pid = int.Parse(reader["id"].ToString());
+                string? firstName = reader["firstName"].ToString();
+                string? lastName = reader["lastName"].ToString();
+                string? address = reader["address"].ToString();
+                string? email = reader["email"].ToString();
+                
+                emp.Id = pid;
+                emp.FirstName = firstName;
+                emp.LastName = lastName;
+                emp.Email = email;
+                emp.Address = address;
+                
+            }
+
+        }catch(Exception e){
+            Console.WriteLine(e.Message);
+        }finally{
+            con.Close();
+        }
+        return emp;
+    }
+
+    public string DeleteEmployeeById(int id){
+        string msg = "Employee not deleted";
+        MySqlConnection con = new MySqlConnection();
+        con.ConnectionString=@"server=localhost; port=3306; user=root; password=root123; database=dotnet;";
+        MySqlCommand cmd = new MySqlCommand();
+        cmd.Connection = con;
+        cmd.CommandText = "Delete from employees where id="+id;
+        try{
+            con.Open();
+            cmd.ExecuteNonQuery();
+            msg = "Employee deleted";
+
+        }catch(Exception e){
+
+        }finally{
+            con.Close();
+        }
+        return msg;
+    }
+    public string UpdateEmployeeDetails(Employee emp){
+        string msg = "Details not updated";
+       MySqlConnection con=new MySqlConnection();
+        con.ConnectionString=@"server=localhost; port=3306; user=root; password=root123; database=dotnet";
+        MySqlCommand cmd=new MySqlCommand();
+        cmd.Connection=con;
+        cmd.CommandText="UPDATE employees SET firstName='"+emp.FirstName+"',lastName='"+emp.LastName+"',email='"+emp.Email+"',address='"+emp.Address+"' WHERE id="+ emp.Id;
+        try{
+            con.Open();
+             cmd.ExecuteNonQuery();
+             msg="details updataed";
+             
+        }
+        catch(Exception e){
+            
+        }
+        finally{
+            con.Close();
+        }
+        return msg;
+    }
+
+    public string InsertEmployee(Employee emp){
+        Console.WriteLine("in insert employee repository");
+        Console.WriteLine(emp.FirstName);
+        string msg = "not inserted";
+        
+        MySqlConnection con=new MySqlConnection();
+        con.ConnectionString=@"server=localhost; port=3306; user=root; password=root123; database=dotnet";
+        MySqlCommand cmd=new MySqlCommand();
+        cmd.Connection=con;
+        cmd.CommandText="INSERT into employees (firstName,lastName,address,email) values('"+emp.FirstName+"','"+emp.LastName+"','"+emp.Address+"','"+emp.Email+"')";
+
+        try{
+            con.Open();
+            cmd.ExecuteNonQuery();
+            msg = "details inserted";
+           
+        }
+        catch(Exception e){
+            Console.WriteLine(e.Message);
+        }
+        finally{
+            con.Close();
+        }
+        return msg;
+    }
+}
+
+
+//Services
+//EmployeeServices
+using EMS.Entities;
+using EMS.Repositories;
+using EMS.Services;
+public class EmployeeService : IEmployeeService{
+    public List<Employee> GetAll(){
+        List<Employee> employees=new List<Employee>();
+        MySqlDBManager mgr=new MySqlDBManager();
+        employees=mgr.GetAll();
+        return employees;}
+    public Employee GetById(int id){
+        MySqlDBManager mgr=new MySqlDBManager();
+        Employee emp=mgr.GetById(id);
+        Console.WriteLine("fetching employee using DBMangager");
+        return emp;}
+public void Delete(int id){
+        MySqlDBManager mgr=new MySqlDBManager();
+        string msg = mgr.DeleteEmployeeById(id);
+        Console.WriteLine(msg);}
+
+    public void Update(Employee emp){
+        MySqlDBManager mgr=new MySqlDBManager();
+        string msg = mgr.UpdateEmployeeDetails(emp);
+        Console.WriteLine(msg);}
+
+    public void Insert(Employee emp){
+        Console.WriteLine("in insert of service");
+        MySqlDBManager mgr = new MySqlDBManager();
+        string msg = mgr.InsertEmployee(emp);
+        Console.WriteLine(msg);}}
+
+//IEmployeeService.cs
+using EMS.Entities;
+namespace EMS.Services;
+public interface IEmployeeService{
+    public List<Employee> GetAll();
+    public Employee GetById(int id);
+    public void Delete(int id);
+
+    public void Update(Employee emp);
+    public void Insert(Employee emp);}
+
+//Views
+       //Employees
+       // Delete.cshtml
+<h1>Artist Deleted</h1>
+<hr/>
+<p><a href="/employees/Index">Back</a></p>
+
+//Details.cshtml
+
+@using EMS.Entities;
+<h1>Member Details</h1>
+<hr/>
+<p> Id : @Model.Id</p>
+<p> Name : @Model.FirstName @Model.LastName</p>
+<p> Email : @Model.Email</p>
+<p> Address : @Model.Address</p>
+
+<hr/>
+<a href="/Employees/Index">Back To Artist</a>
+
+//Edit.cshtml
+
+@using EMS.Entities;
+<h1>Edit Artist Details</h1>
+
+<form action="/Employees/Edit/@Model.Id" method="POST">
+    <label>ID :</label>
+    <input type="text" name="Id" value="@Model.Id" readonly/>
+    <br />
+    <label>First Name :</label>
+    <input type="text" name="FirstName" value="@Model.FirstName"/>
+    <br />
+    <label>Last Name :</label>
+    <input type="text" name="LastName" value="@Model.LastName"/>
+    <br />
+    <label>Address :</label>
+    <input type="text" name="Address" value="@Model.Address"/>
+    <br />
+    <label>Email :</label>
+    <input type="text" name="Email" value="@Model.Email"/>
+    <br />
+    <button type="submit">Update</button>
+</form>
+
+//Index.cshtml
+
+@using EMS.Entities
+
+<h1>BTS Members</h1>
+<hr/>
+
+@{
+    List<Employee> employees = (List<Employee>)TempData["allEmployees"];
+
+        foreach(Employee emp in employees){
+            <p> @emp.FirstName @emp.LastName  <a href="/employees/details/@emp.Id">Details</a> | <a href="/employees/edit/@emp.Id">Edit</a> | <a href="/employees/delete/@emp.Id">Delete</a></p>}
+
+        <hr/>
+        <a href="/Employees/Insert">New Employee</a>
+}
+
+
+
+//Insert.cshtml
+
+<form action="/Employees/Insert" method="POST">
+    <label for="Id">Id </label>
+    <input type="text" class="form-control" name="Id"id="Id" aria-describedby="emailHelp" placeholder="Enter id"><br>
+    <label>First Name :</label>
+    <input type="text" class="form-control" id="FirstName" name="FirstName" placeholder="Enter FirstName"><br>
+    <label for="LastName">Last Name : </label>
+    <input type="text" class="form-control" name="LastName" id="LastName"  placeholder="Enter LastName"><br>
+    <label for="Address">Address </label>
+    <input type="text" class="form-control" name="Address" id="Address"  placeholder="Enter Address"><br>
+    <label for="Email">Email </label>
+    <input type="text" class="form-control" name="Email" id="Email"  placeholder="Enter Email"><br>
+    <button type="submit">Submit</button>
+</form>
+
+//List.cshtml
+
+@using EMS.Entities
+<h1>Employee list</h1>
+<hr/>
+@{
+    List<Employee> employees = Model;
+        foreach(Employee emp in employees){
+            <p>@emp.FirstName @emp.LastName</p>
+        }
+}
+
+
+//Home
+//Index.cshtml
+
+//Privacy.cshtml
+//shared
+// _Layout.cshtml
+
+     <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - EndModuleWebApp</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/EndModuleWebApp.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">EndModuleWebApp</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Employees" asp-action="Index">Artists</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2024 - EndModuleWebApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+
+//-Layout.cshtml.css
+//_ValidateScriptsPartial.cshtml
+
+//_ViewImports.cshtml
+
+//-viewStart.cshtml
+
+
+// wwwroot
+//appsettings.Development
+//appsettings.json
+//endmodulewebapp.csproj
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySql.data" Version="8.2.0" />
+  </ItemGroup>
+
+</Project>
+
+
+//endmodulewebapp.sln
+//program.cs
+//endmodulewebapp.sln
+
+
